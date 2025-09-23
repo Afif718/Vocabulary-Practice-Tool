@@ -18,6 +18,13 @@ The application features a split-screen design:
 - **Left Panel**: Word selection, controls, input field, and progress statistics
 - **Right Panel**: List of misspelled words for review
 
+<img width="1366" height="768" alt="image" src="https://github.com/user-attachments/assets/aafaebeb-ef61-4d8b-8917-f0a8df236377" />
+<img width="1366" height="768" alt="image" src="https://github.com/user-attachments/assets/d2636d86-17db-499c-a97e-b919a9beb910" />
+<img width="1366" height="768" alt="image" src="https://github.com/user-attachments/assets/42a95281-005b-488f-af1d-2a1a61a865ff" />
+<img width="1366" height="768" alt="image" src="https://github.com/user-attachments/assets/3773ff03-ce98-4fad-9f35-1a84f27ceb29" />
+<img width="1366" height="768" alt="image" src="https://github.com/user-attachments/assets/96f49a57-0fa0-4ee9-825b-b868bb678612" />
+
+
 ## Installation
 
 ### Prerequisites
@@ -100,7 +107,6 @@ vocabulary-practice-tool/
 ├── vocab_trainer.py        # Enhanced version with dictionary API
 ├── vocab_words.json        # Vocabulary database (JSON format)
 ├── README.md              # This file
-├── requirements.txt       # Python dependencies
 └── screenshots/           # Application screenshots (optional)
 ```
 
