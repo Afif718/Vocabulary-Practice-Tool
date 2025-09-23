@@ -3,35 +3,16 @@ from tkinter import ttk
 import pyttsx3
 import threading
 import time
-import json
-import os
+import requests
 
-# ========== TTS Engine ==========
+# ========= TTS Engine =========
 engine = pyttsx3.init()
 engine.setProperty("rate", 130)
-
-# ========== Load Vocabulary from JSON ==========
-vocab_file = "vocab_words.json"
-if not os.path.exists(vocab_file):
-    raise FileNotFoundError(f"{vocab_file} not found. Make sure it's in the same folder.")
-with open(vocab_file, "r", encoding="utf-8") as f:
-    word_lists = json.load(f)
-
-# ========= Generate dropdown values with word count =========
-display_to_key = {}
-combo_values = []
-for key, words in word_lists.items():
-    count = len(words)
-    display_name = f"{key} ({count} words)"
-    combo_values.append(display_name)
-    display_to_key[display_name] = key
 
 # ========= Global Variables =========
 current_word_list = []
 current_index = 0
 practicing = False
-
-# Stats
 correct_count = 0
 incorrect_count = 0
 
@@ -42,27 +23,30 @@ def speak(text):
 
 # ========= UI Stats Update =========
 def update_stats():
-    """Update the Correct / Incorrect / Remaining labels."""
-    try:
-        total = len(current_word_list)
-        remaining = max(total - current_index, 0)
-    except Exception:
-        total = 0
-        remaining = 0
+    """Update Correct / Incorrect / Remaining labels."""
+    total = len(current_word_list)
+    remaining = max(total - current_index, 0)
     correct_label.config(text=f"✅ Correct: {correct_count}")
     incorrect_label.config(text=f"❌ Incorrect: {incorrect_count}")
     remaining_label.config(text=f"🔁 Remaining: {remaining}")
 
+# ========= Helper: sleep with interrupt =========
+def wait_with_interrupt(seconds):
+    """Wait for 'seconds' seconds but exit early if practicing is False."""
+    for _ in range(int(seconds * 10)):
+        if not practicing:
+            return False
+        time.sleep(0.1)
+    return True
+
 # ========= Main Practice Loop =========
 def practice_loop():
     global current_index, practicing, correct_count, incorrect_count
-    practicing = True
 
+    practicing = True
     while current_index < len(current_word_list) and practicing:
         word = current_word_list[current_index]
-        # remaining includes current word
-        remaining = len(current_word_list) - current_index
-        result_label.config(text=f"🗣️ Listen... ({remaining} left)")
+        result_label.config(text=f"🗣️ Listen... ({len(current_word_list) - current_index} left)")
         update_stats()
 
         speak(word)
@@ -71,8 +55,9 @@ def practice_loop():
         spelling_entry.delete(0, tk.END)
         spelling_entry.focus()
 
-        # pause to allow user to type
-        time.sleep(5)
+        # wait for 5 seconds (or until stop)
+        if not wait_with_interrupt(5):
+            break
 
         user_input = spelling_entry.get().strip().lower()
         correct = word.lower()
@@ -81,43 +66,58 @@ def practice_loop():
             correct_count += 1
             result_label.config(text=f"✅ Correct! {word}")
         elif user_input != "":
-            # mark incorrect, but avoid double-counting same word in listbox
             if word not in incorrect_words_box.get(0, tk.END):
                 incorrect_words_box.insert(tk.END, word)
                 incorrect_count += 1
             result_label.config(text=f"❌ Incorrect! You wrote '{user_input}'. Correct: {word}")
         else:
-            # treat blank as 'write on paper' (as original behavior) — count as correct for motivation
             correct_count += 1
             result_label.config(text=f"✅ Correct spelling: {word} (write it on paper?)")
 
         spelled = ' '.join(list(word.upper()))
         speak(f"The correct spelling is {spelled}")
 
-        # move to next word after feedback
         current_index += 1
         update_stats()
-        time.sleep(3)
 
-    result_label.config(text="🎉 All words done!")
+        # wait 3 seconds before next word
+        if not wait_with_interrupt(3):
+            break
+
     practicing = False
+    if current_index >= len(current_word_list):
+        result_label.config(text="🎉 All words done!")
+    else:
+        result_label.config(text="⏹️ Practice stopped.")
     update_stats()
 
 # ========= Start Practice =========
 def start_practice():
     global current_word_list, current_index, practicing, correct_count, incorrect_count
-    selected_display = combo.get()
-    selected_sublist = display_to_key.get(selected_display, "")
-    if not selected_sublist:
-        result_label.config(text="❗ Please select a sublist.")
+    topic = topic_entry.get().strip()
+    if not topic:
+        result_label.config(text="❗ Please enter a topic or word.")
         return
-    current_word_list = word_lists[selected_sublist]
+
+    # Fetch related words from Datamuse API
+    try:
+        response = requests.get(f"https://api.datamuse.com/words?ml={topic}&max=20")
+        words_data = response.json()
+        current_word_list = [w['word'] for w in words_data]
+    except Exception as e:
+        result_label.config(text=f"❗ Error fetching words: {e}")
+        return
+
+    if not current_word_list:
+        result_label.config(text="❗ No words found for this topic.")
+        return
+
     current_index = 0
-    # reset stats
     correct_count = 0
     incorrect_count = 0
     incorrect_words_box.delete(0, tk.END)
     update_stats()
+
     threading.Thread(target=practice_loop, daemon=True).start()
 
 # ========= Stop Practice =========
@@ -140,9 +140,9 @@ main_frame.pack(fill="both", expand=True, padx=20, pady=10)
 left_frame = tk.Frame(main_frame, bg="#f8f8f8")
 left_frame.pack(side="left", fill="both", expand=True)
 
-tk.Label(left_frame, text="📚 Choose a Sublist:", font=("Arial", 14), bg="#f8f8f8").pack(pady=10)
-combo = ttk.Combobox(left_frame, values=combo_values, font=("Arial", 12), width=40)
-combo.pack()
+tk.Label(left_frame, text="📝 Enter a Topic or Word:", font=("Arial", 14), bg="#f8f8f8").pack(pady=5)
+topic_entry = tk.Entry(left_frame, font=("Arial", 12), width=40)
+topic_entry.pack(pady=5)
 
 # Buttons
 btn_frame = tk.Frame(left_frame, bg="#f8f8f8")
@@ -150,7 +150,7 @@ btn_frame.pack(pady=10)
 tk.Button(btn_frame, text="▶️ Start", command=start_practice, font=("Arial", 12), bg="green", fg="white").pack(side="left", padx=10)
 tk.Button(btn_frame, text="⏹️ Stop", command=stop_practice, font=("Arial", 12), bg="red", fg="white").pack(side="left", padx=10)
 
-# Stats frame (motivation)
+# Stats frame
 stats_frame = tk.Frame(left_frame, bg="#f8f8f8")
 stats_frame.pack(pady=(8, 10), fill="x")
 
@@ -161,7 +161,7 @@ incorrect_label.pack(side="left", padx=(0,10))
 remaining_label = tk.Label(stats_frame, text="🔁 Remaining: 0", font=("Arial", 12), bg="#f8f8f8", anchor="w", width=18)
 remaining_label.pack(side="left")
 
-# Entry field
+# Entry field for spelling
 spelling_entry = tk.Entry(left_frame, font=("Arial", 14), width=40)
 spelling_entry.pack(pady=10)
 
