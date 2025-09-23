@@ -40,8 +40,8 @@ pip install pyttsx3 requests
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/vocabulary-practice-tool.git
-cd vocabulary-practice-tool
+[git clone https://github.com/yourusername/vocabulary-practice-tool.git](https://github.com/Afif718/Vocabulary-Practice-Tool)
+cd Vocabulary-Practice-Tool
 ```
 
 2. Ensure all files are in the same directory:
