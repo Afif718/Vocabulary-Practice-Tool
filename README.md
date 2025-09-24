@@ -107,7 +107,6 @@ vocabulary-practice-tool/
 ├── vocab_trainer.py        # Enhanced version with dictionary API
 ├── vocab_words.json        # Vocabulary database (JSON format)
 ├── README.md              # This file
-└── screenshots/           # Application screenshots (optional)
 ```
 
 ## Technical Details
